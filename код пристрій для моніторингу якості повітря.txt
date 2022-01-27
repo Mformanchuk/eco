@@ -1,0 +1,314 @@
+Код на підключення плати esp8266
+#include <ESP8266WiFi.h> 
+#include "ThingSpeak.h"
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27,20,4);
+# define SECRET_SSID "MyWiFi" 
+# define SECRET_PASS "20310609"
+# define SECRET_CH_ID 1609850 
+# define SECRET_WRITE_APIKEY "961Q2GHJ3YUJ5TBQ" 
+unsigned long myChannelNumber = SECRET_CH_ID;
+const char * myWriteAPIKey = SECRET_WRITE_APIKEY;
+const char *Ssid = SECRET_SSID; 
+const char *Pass = SECRET_PASS; 
+WiFiClient client;
+float temperatura = 0; 
+float humidity  = 0; 
+float sensorDustDensity = 0; 
+float rzero = 0; 
+#define HL1 14 
+#define HL2 12 
+void setup() {
+    pinMode(HL1, OUTPUT);
+    pinMode(HL2, OUTPUT);
+    digitalWrite(HL1, LOW);
+    digitalWrite(HL2, LOW);
+    Serial.begin(115200);
+    WiFi.mode(WIFI_STA);
+    ThingSpeak.begin(client);
+    Wire.begin(D1, D2);  
+    lcd.init();
+    lcd.backlight();
+    lcd.clear(); 
+    lcd.print(" waite load");
+    lcd.setCursor(0, 1);
+    lcd.print(" just 3 minuts");
+    lcd.display();
+   }
+void loop() {
+  char str[16]={'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'}; 
+  int result[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  int httpCode1 = 0;
+  int httpCode2 = 0;
+  int httpCode3 = 0;
+  int httpCode4 = 0;
+   Wire.requestFrom(8, 16); 
+   int i=0;
+   while(Wire.available()){
+       char c =+ Wire.read();
+       str[i++]= c;
+      }  
+   result[0] = StrToInt (str[0]);
+   result[1] = StrToInt (str[1]);
+   result[2] = StrToInt (str[2]);
+   result[3] = StrToInt (str[3]);
+   temperatura = ((float)(result[0]*1000+result[1]*100+result[2]*10+result[3]*1))/10;
+   result[4] = StrToInt (str[4]);
+   result[5] = StrToInt (str[5]);
+   result[6] = StrToInt (str[6]);
+   result[7] = StrToInt (str[7]);
+   humidity = ((float)(result[4]*1000+result[5]*100+result[6]*10+result[7]*1))/10;
+   result[8] = StrToInt (str[8]);
+   result[9] = StrToInt (str[9]);
+   result[10] = StrToInt (str[10]);
+   result[11] = StrToInt (str[11]);
+   sensorDustDensity = ((float)(result[8]*1000+result[9]*100+result[10]*10+result[11]*1))/10;
+   result[12] = StrToInt (str[12]);
+   result[13] = StrToInt (str[13]);
+   result[14] = StrToInt (str[14]);
+   result[15] = StrToInt (str[15]);
+   rzero = ((float)(result[12]*1000+result[13]*100+result[14]*10+result[15]*1))/10;
+   Serial.println(temperatura);  
+   Serial.println(humidity);  
+   Serial.println(sensorDustDensity);  
+   Serial.println(rzero); 
+ if(WiFi.status() != WL_CONNECTED){
+     WiFi.begin(Ssid, Pass); // Connect to WPA/WPA2 network. 
+     while(WiFi.status() != WL_CONNECTED){
+      digitalWrite(HL1, HIGH);
+      delay(500);
+      digitalWrite(HL1, LOW);
+      delay(500);
+      Serial.print(".");
+    }
+  }
+ if(WiFi.status() == WL_CONNECTED){
+    digitalWrite(HL1, HIGH);
+    Serial.println("");
+    Serial.println("WiFi connected.");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+  }
+  if (WiFi.status() == WL_CONNECTED){
+     httpCode1 = ThingSpeak.writeField(myChannelNumber, 1,temperatura, myWriteAPIKey);
+     delay(30000);
+     httpCode2 = ThingSpeak.writeField(myChannelNumber, 2,humidity, myWriteAPIKey);
+     delay(30000);
+     httpCode3 =  ThingSpeak.writeField(myChannelNumber, 3,rzero, myWriteAPIKey);
+     delay(30000);
+     httpCode4 =  ThingSpeak.writeField(myChannelNumber, 4,sensorDustDensity, myWriteAPIKey);
+     delay(30000);
+   }
+   if ((httpCode1 == 200)and(httpCode2 == 200)and(httpCode3 == 200)and(httpCode4 == 200)) {
+    digitalWrite(HL2, HIGH);
+   }else {
+    digitalWrite(HL2, LOW);
+   }
+  lcd.clear(); 
+  lcd.setCursor(0,0);
+  lcd.print("H: ");
+  lcd.print(humidity);
+  lcd.setCursor(10,0);
+  lcd.print("T: ");
+  lcd.print(temperatura);  
+  lcd.setCursor(0,1);
+  lcd.print("Dust: ");
+  lcd.print(sensorDustDensity);
+  lcd.setCursor(0,2); 
+  lcd.print("CO2: ");
+  lcd.print(rzero); 
+  lcd.backlight();
+  lcd.display();
+   
+}
+
+int StrToInt(char c){
+ int i=0; 
+  switch (c){
+    case '0':
+       i = 0;
+       break;
+    case '1':
+       i = 1;
+       break;
+    case '2':
+       i = 2;
+       break;
+    case '3':
+       i = 3;
+       break;
+    case '4':
+       i = 4;
+       break;
+    case '5':
+       i = 5;
+       break;
+    case '6':
+       i = 6;
+       break;
+    case '7':
+       i = 7;
+       break;
+    case '8':
+       i = 8;
+       break; 
+    case '9':
+       i = 9;
+       break; 
+    default:
+       i=0;        
+      }
+ return i; 
+}
+Код на підключення плати Arduino Uno
+#include <Wire.h>
+#include "DHT.h"
+#include <MQ135.h>
+#if defined(__AVR__)
+#define OPERATING_VOLTAGE   5.0
+#else
+#define OPERATING_VOLTAGE   3.3
+#endif
+constexpr uint8_t PIN_AOUT = A0;
+constexpr uint8_t PIN_IR_LED = 7;
+float zeroSensorDustDensity = 0.6;
+int sensorADC;
+float sensorVoltage;
+float sensorDustDensity;
+
+#define DHTPIN 2 
+#define DHTTYPE DHT11 
+float temperature=0;
+float humidity =0;
+DHT dht(DHTPIN, DHTTYPE);
+
+#define analogPin A2
+MQ135 gasSensor = MQ135(analogPin); 
+
+uint16_t i =0;
+char str[16];
+const byte piezoPin = 5;
+void setup() {
+ Wire.begin(8);               
+// Wire.onReceive(receiveEvent);  
+ Wire.onRequest(requestEvent); 
+ Serial.begin(115200);          
+ dht.begin();
+ pinMode(PIN_IR_LED, OUTPUT);
+ digitalWrite(PIN_IR_LED, LOW);
+}
+ 
+void loop() {
+ int tInt[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; 
+ humidity = dht.readHumidity();
+ temperature = dht.readTemperature(); 
+ i=(int)(temperature*10);
+ tInt[0]=((i/1000)%10);
+ tInt[1]=((i/100)%10);
+ tInt[2]=((i/10)%10);
+ tInt[3]=(i%10);
+ str[0] = IntToStr(tInt[0]);
+ str[1] = IntToStr(tInt[1]);
+ str[2] = IntToStr(tInt[2]);
+ str[3] = IntToStr(tInt[3]);
+ i=(int)(humidity*10);
+ tInt[4]=((i/1000)%10);
+ tInt[5]=((i/100)%10);
+ tInt[6]=((i/10)%10);
+ tInt[7]=(i%10);
+ str[4] = IntToStr(tInt[4]);
+ str[5] = IntToStr(tInt[5]);
+ str[6] = IntToStr(tInt[6]);
+ str[7] = IntToStr(tInt[7]);
+  for (int i = 0; i < 10 ; i++) {
+    digitalWrite(PIN_IR_LED, HIGH);
+    delayMicroseconds(280);
+    sensorADC += analogRead(PIN_AOUT);
+    digitalWrite(PIN_IR_LED, LOW);
+    delay(10);
+  }
+  sensorADC = sensorADC / 10;
+  sensorVoltage = (OPERATING_VOLTAGE / 1024.0) * sensorADC * 11;
+  if (sensorVoltage < zeroSensorDustDensity) {
+    sensorDustDensity = 0;
+  } else {
+    sensorDustDensity = 0.17 * sensorVoltage - 0.1;
+  }
+ i=(int)(sensorDustDensity*10);
+ tInt[8]=((i/1000)%10);
+ tInt[9]=((i/100)%10);
+ tInt[10]=((i/10)%10);
+ tInt[11]=(i%10);
+ str[8] = IntToStr(tInt[8]);
+ str[9] = IntToStr(tInt[9]);
+ str[10] = IntToStr(tInt[10]);
+ str[11] = IntToStr(tInt[11]);
+ //газ
+ float ppm = gasSensor.getPPM(); 
+ float rzero = gasSensor.getRZero();
+ i=(int)(rzero*10); 
+ tInt[12]=((i/1000)%10);
+ tInt[13]=((i/100)%10);
+ tInt[14]=((i/10)%10);
+ tInt[15]=(i%10);
+ str[12] = IntToStr(tInt[12]);
+ str[13] = IntToStr(tInt[13]);
+ str[14] = IntToStr(tInt[14]);
+ str[15] = IntToStr(tInt[15]);
+ delay(1000);
+ if (sensorDustDensity > 0.1) {
+  tone(7, 4000);
+  delay(100);
+  noTone(piezoPin);
+  delay(900);
+    }
+    else {
+      noTone(piezoPin);
+      }
+}
+
+void requestEvent() {
+  
+ Wire.write(str); 
+}
+
+char IntToStr(int i){
+char c='0'; 
+  switch (i){
+    case 0:
+       c = '0';
+       break;
+    case 1:
+       c = '1';
+       break;
+    case 2:
+       c = '2';
+       break;
+    case 3:
+       c = '3';
+       break;
+    case 4:
+       c = '4';
+       break;
+    case 5:
+       c = '5';
+       break;
+    case 6:
+       c = '6';
+       break;
+    case 7:
+       c = '7';
+       break;
+    case 8:
+       c = '8';
+       break; 
+    case 9:
+       c = '9';
+       break; 
+    default:
+       c=0;        
+      }
+ return c; 
+}
+
